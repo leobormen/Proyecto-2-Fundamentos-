@@ -4,7 +4,7 @@ from machine import ADC, Pin, PWM
 import time
 
 SSID = "Leo" #No debe tener caracteres especiales
-PASSWORD = "l3575592l
+PASSWORD = "l3575592l"
 
 numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1,1,1,0], "3" : [1,0,1,1,0,1,1], "4" : [1,1,0,1,0,0,1], "5" : [1,1,1,0,0,1,1], "6" : [1,1,1,0,1,1,1], "7" : [0,0,1,1,0,0,1]}
 
@@ -48,6 +48,7 @@ def connect_wifi():
     return wlan.ifconfig()[0]
 
 def start_server(ip):
+    global conn
     s = socket.socket()
     s.bind((ip, 1717))
     s.listen(1)
@@ -61,6 +62,8 @@ def mostrar_cantidad_productos(producto):
     for x in range(7):
         diccionario_segmentos["segmento" + str(x)].value(numero[x])
     
+ip = connect_wifi()
+start_server(ip)
 
 while True:
     adc_value = potenciometro.read_u16()
@@ -86,4 +89,5 @@ while True:
         servo.duty_u16(min_duty)
         time.sleep(3)
         servo.duty_u16(half_duty)
+        conn.send(f"{producto}")
     time.sleep(0.1)
