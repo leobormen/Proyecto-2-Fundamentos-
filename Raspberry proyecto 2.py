@@ -6,7 +6,6 @@ numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1
 
 lista_productos = [0,2,5]
 
-servo = Pin(21, Pin.OUT)
 potenciometro = ADC(Pin(26))
 led1 = Pin(16, Pin.OUT)
 led2 = Pin(17, Pin.OUT)
@@ -23,7 +22,7 @@ diccionario_segmentos = {"segmento0" : segmento0, "segmento1" : segmento1, "segm
 
 
 # Set up PWM Pin for servo control
-servo_pin = machine.Pin(27)
+servo_pin = machine.Pin(0)
 servo = PWM(servo_pin)
 
 # Set Duty Cycle for Different Angles
@@ -63,6 +62,6 @@ while True:
         lista_productos[producto] = lista_productos[producto] - 1
         print("hola")
         servo.duty_u16(min_duty)
-        time.sleep(2)
+        time.sleep(3)
         servo.duty_u16(half_duty)
     time.sleep(0.1)
