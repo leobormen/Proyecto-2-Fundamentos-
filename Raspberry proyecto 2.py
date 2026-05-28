@@ -3,18 +3,22 @@ import socket
 from machine import ADC, Pin, PWM
 import time
 
+#Configuracion inicial de la conexion WiFi
 SSID = "Leo" #No debe tener caracteres especiales
 PASSWORD = "l3575592l"
 
-numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1,1,1,0], "3" : [1,0,1,1,0,1,1], "4" : [1,1,0,1,0,0,1], "5" : [1,1,1,0,0,1,1], "6" : [1,1,1,0,1,1,1], "7" : [0,0,1,1,0,0,1]}
-
+#Lista_Productos
 lista_productos = [0,2,5]
 
-servo = PWM(0)
+#Pines 
 potenciometro = ADC(Pin(26))
 led1 = Pin(16, Pin.OUT)
 led2 = Pin(17, Pin.OUT)
 boton = Pin(10, Pin.IN, Pin.PULL_DOWN)
+
+#7 Segmentos
+
+# Pines 7 Segmentos
 segmento0 = Pin(15, Pin.OUT)
 segmento1 = Pin(14, Pin.OUT)
 segmento2 = Pin(13, Pin.OUT)
@@ -23,17 +27,24 @@ segmento4 = Pin(18, Pin.OUT)
 segmento5 = Pin(19, Pin.OUT)
 segmento6 = Pin(20, Pin.OUT)
 
+#Diccionario Pines del 7 segmentos
 diccionario_segmentos = {"segmento0" : segmento0, "segmento1" : segmento1, "segmento2" : segmento2, "segmento3" : segmento3, "segmento4" : segmento4, "segmento5" : segmento5, "segmento6" : segmento6}
+
+#Numeros del Segumento
+numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1,1,1,0], "3" : [1,0,1,1,0,1,1], "4" : [1,1,0,1,0,0,1], "5" : [1,1,1,0,0,1,1], "6" : [1,1,1,0,1,1,1], "7" : [0,0,1,1,0,0,1]}
+
+
+# Servo Motor 
+servo = PWM(Pin(0))
+frequency = 50
+servo.freq(frequency)
 
 # Set Duty Cycle for Different Angles
 max_duty = 6800
 min_duty = 2000
 half_duty = 4700
 
-#Set PWM frequency
-frequency = 50
-servo.freq (frequency)
-
+# Conexion WiFi 
 
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
@@ -56,17 +67,19 @@ def start_server(ip):
     conn, addr = s.accept()
     print("Conectado desde:", addr)
 
+# Funciones de la maquina
 
 def mostrar_cantidad_productos(producto):
     numero = numeros_segmento[str(lista_productos[producto])]
     for x in range(7):
         diccionario_segmentos["segmento" + str(x)].value(numero[x])
     
-ip = connect_wifi()
-start_server(ip)
 
 while True:
+
+    # Potenciometro 
     adc_value = potenciometro.read_u16()
+    
     if adc_value > 50000:
         print("0")
         producto = 0
@@ -76,6 +89,7 @@ while True:
     else:
         print("alto")
         producto = 2
+    # Prender Lets 
     if lista_productos[producto] == 0:
         led1.value(1)
         led2.value(0)
@@ -83,11 +97,12 @@ while True:
         led1.value(0)
         led2.value(1)
     mostrar_cantidad_productos(producto)
+    
+    # Procedimiento compra productos
     if boton.value() == 1 and lista_productos[producto] > 0:
         lista_productos[producto] = lista_productos[producto] - 1
         print("hola")
         servo.duty_u16(min_duty)
         time.sleep(3)
         servo.duty_u16(half_duty)
-        conn.send(f"{producto}")
     time.sleep(0.1)
