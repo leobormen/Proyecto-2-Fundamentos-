@@ -11,13 +11,16 @@ PORT = 1717
 cliente_sock = None #Definir el sock del cliente
 
 #Lista_Productos
-lista_productos = [0,0,0] #Siempre empezara vacia
+lista_productos = [0,0,0]
+lista_stats = [0,0,0]
 
 #Pines 
 potenciometro = ADC(Pin(26))
-led1 = Pin(16, Pin.OUT)
-led2 = Pin(17, Pin.OUT)
+led_rojo = Pin(16, Pin.OUT)
+led_verde = Pin(17, Pin.OUT)
+led_azul = Pin(34, Pin.OUT)
 boton = Pin(10, Pin.IN, Pin.PULL_DOWN)
+led_azul.value(1)
 
 #7 Segmentos
 
@@ -34,7 +37,7 @@ segmento6 = Pin(20, Pin.OUT)
 diccionario_segmentos = {"segmento0" : segmento0, "segmento1" : segmento1, "segmento2" : segmento2, "segmento3" : segmento3, "segmento4" : segmento4, "segmento5" : segmento5, "segmento6" : segmento6}
 
 #Numeros del Segumento
-numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1,1,1,0], "3" : [1,0,1,1,0,1,1], "4" : [1,1,0,1,0,0,1], "5" : [1,1,1,0,0,1,1], "6" : [1,1,1,0,1,1,1], "7" : [0,0,1,1,0,0,1]}
+numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1,1,1,0], "3" : [1,0,1,1,0,1,1], "4" : [1,1,0,1,0,0,1], "5" : [1,1,1,0,0,1,1], "6" : [1,1,1,0,1,1,1], "7" : [0,0,1,1,0,0,1], "8" : [1,1,1,1,1,1,1], "9" : [1,1,1,1,0,1,1] }
 
 
 # Servo Motor 
@@ -49,8 +52,10 @@ half_duty = 4700
 
 
 # Modos de la maquina
-modo_ventas = False
+modo_ventas = True
 modo_mantenimiento = False 
+stock_bool = False
+stats_bool = True
 
 # Conexion WiFi 
 
@@ -78,11 +83,11 @@ def iniciar_servidor_async(ip):
  
     poller = select.poll() #Crea un poller
     poller.register(s, select.POLLIN) #POLLIN revisa si hay un mensaje, pero lo hace una vez y no en un loop constante, dando la logica de la conexion asincrona
-
+    print("Servidor Asincrono Listo")
     return s, poller #Devuelve ambos para su uso posterior
 
 def recibir_mensaje(data):
-    global lista_productos, modo_ventas, modo_mantenimiento
+    global lista_productos, lista_stats, modo_ventas, modo_mantenimiento, stock_bool, stas_bool
     mensaje = data.decode().strip().upper() #Decodificar ya que viene en binario, strip (eliminar espacios), upper para asegurar una correcta lectura
     
     #Recibir Stock de productos
@@ -93,28 +98,51 @@ def recibir_mensaje(data):
         #Agregar cada item a la variable actual
         for i in range(1, len(mensaje_lista_stock)):
             lista_productos.append(int(mensaje_lista_stock[i])) #Hay que guardar el numero como una variable entera, de lo contrario no se puede restar
+        print("Lista de productos actualizada!!")
         print(lista_productos)
+        stock_bool = True
+        
+    #Recibir estadisticas de ventas
+    elif mensaje.startswith("STATS:"): #Startswith revisa si un string empieza con una frase, en este caso se usara para hacer una especie de comandos   
+        mensaje_lista_stats = mensaje.split(":") #Split retorna una lista
+        lista_stats = [] #Limpiamos la lista
+        
+        #Agregar cada item a la variable actual
+        for i in range(1, len(mensaje_lista_stats)):
+            lista_stats.append(int(mensaje_lista_stats[i])) 
+        print("Lista de STATS actualizada!!")
+        print(lista_stats)
+    stats_bool = True
+    
+    if stats_bool and stock_bool:
+        print("MENSAJES RECIBIDOS CORRECTAMENTE!")
+        print("iniciando ventas")
+        modo_ventas = True
     
     #Cambiar a modo_mantenimiento
     elif mensaje.startswith("MANTENIMIENTO:"):
         pass
 
-def enviar_mensaje(id):
+#Definir una funcion para enviar mensajes
+def enviar_mensaje(id, producto):
     global cliente_sock #Revisar si hay un cliente conectado
-
+    mensaje = None #En caso de que no haya mensaje
+    
     if id == "VENTA": #es decir que se vendio un producto
-        mensaje = f"STOCK:{lista_productos[0]}:{lista_productos[1]}:{lista_productos[2]}"
+        mensaje = f"VENTA:{producto}:{lista_productos[0]}:{lista_productos[1]}:{lista_productos[2]}"
 
     if cliente_sock:
         try:
-            cliente_sock.send(mensaje.enconde) #hay que codificar siempre el mensaje
-        except:
-            print("Error enviando el mensaje")
-            
+            cliente_sock.send(bytes(mensaje, "utf-8")) #hay que codificar siempre el mensaje, en este caso encode no me funciono entonces use bytes, utf 8 es un estandar de codificacion
+        except Exception as e:
+            print("ERROR", e) 
+    else:
+        print("No hay cliente conectado")
 
 # Funciones de la maquina
 
 def mostrar_cantidad_productos(producto):
+    global lista_productos 
     numero = numeros_segmento[str(lista_productos[producto])]
     for x in range(7):
         diccionario_segmentos["segmento" + str(x)].value(numero[x])
@@ -128,7 +156,7 @@ def inicio():
    print("Sistema listo.")
 
 inicio()
-
+print("inicio while loop")
 #Loop principal
 while True:
     
@@ -161,39 +189,44 @@ while True:
         adc_value = potenciometro.read_u16()
 
         if adc_value > 50000:
-            print("Producto 1")
             producto = 0 #Este es el indice de la lista
         elif 20000 < adc_value < 50000:
-            print("Producto 2")
             producto = 1
         else:
-            print("Producto 3")
             producto = 2
        
        # Prender Leds
        
         if lista_productos[producto] == 0: #Si no hay producto, prender rojo y no prender verde
-            led1.value(1)
-            led2.value(0)
+            led_rojo.value(1)
+            led_verde.value(0)
        
         else: #Si hay productos, hacer la instruccion alreves
-            led1.value(0)
-            led2.value(1)
-        
+            led_rojo.value(0)
+            led_verde.value(1)
         mostrar_cantidad_productos(producto) #Mostrar la cantidad de producto en el 7 segmentos
         
         # Procedimiento compra productos
         if boton.value() == 1 and lista_productos[producto] > 0:
             lista_productos[producto] = lista_productos[producto] - 1
-            print("Compra exitosa")
-            enviar_mensaje("VENTA")
+            enviar_mensaje("VENTA", producto)
+            if lista_productos[producto] == 0: #Si no hay producto, prender rojo y no prender verde
+                led_rojo.value(1)
+                led_verde.value(0)
+           
+            else: #Si hay productos, hacer la instruccion alreves
+                led_rojo.value(0)
+                led_verde.value(1)
+            mostrar_cantidad_productos(producto) #Mostrar la cantidad de producto en el 7 segmentos
             servo.duty_u16(min_duty)
             time.sleep(3)
             servo.duty_u16(half_duty)
         
         
         
-        time.sleep(0.5) #Evitar que la rasperry se sobre caliente
+        time.sleep(0.1) #Evitar que la rasperry se sobre caliente
+
+
 
 
 
