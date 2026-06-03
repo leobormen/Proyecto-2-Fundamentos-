@@ -1,14 +1,17 @@
 import network
 import socket
+import select 
 from machine import ADC, Pin, PWM
 import time
 
 #Configuracion inicial de la conexion WiFi
-SSID = "Leo" #No debe tener caracteres especiales
-PASSWORD = "l3575592l"
+SSID = "RedSanti" #No debe tener caracteres especiales
+PASSWORD = "ce1234ce"
+PORT = 1717
+cliente_sock = None #Definir el sock del cliente
 
 #Lista_Productos
-lista_productos = [0,2,5]
+lista_productos = [0,0,0] #Siempre empezara vacia
 
 #Pines 
 potenciometro = ADC(Pin(26))
@@ -44,6 +47,11 @@ max_duty = 6800
 min_duty = 2000
 half_duty = 4700
 
+
+# Modos de la maquina
+modo_ventas = False
+modo_mantenimiento = False 
+
 # Conexion WiFi 
 
 def connect_wifi():
@@ -58,14 +66,51 @@ def connect_wifi():
     print("\nConectado:", wlan.ifconfig())
     return wlan.ifconfig()[0]
 
-def start_server(ip):
-    global conn
-    s = socket.socket()
-    s.bind((ip, 1717))
-    s.listen(1)
-    print("Esperando conexión del cliente...")
-    conn, addr = s.accept()
-    print("Conectado desde:", addr)
+def iniciar_servidor_async(ip):
+    #Esta funcion la tome del proyecto de StrangerTEC
+
+    s = socket.socket() #Crea un socket, en este caso para la conexion asincrona
+
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) #Permite reusar el puerto si la rasperry se desconecta
+
+    s.bind((ip, PORT)) #Le asocia la ip y el puerto al socket creado
+    s.listen(1) #Significa que escuchará solo un mensaje a la vez
+ 
+    poller = select.poll() #Crea un poller
+    poller.register(s, select.POLLIN) #POLLIN revisa si hay un mensaje, pero lo hace una vez y no en un loop constante, dando la logica de la conexion asincrona
+
+    return s, poller #Devuelve ambos para su uso posterior
+
+def recibir_mensaje(data):
+    global lista_productos, modo_ventas, modo_mantenimiento
+    mensaje = data.decode().strip().upper() #Decodificar ya que viene en binario, strip (eliminar espacios), upper para asegurar una correcta lectura
+    
+    #Recibir Stock de productos
+    if mensaje.startswith("STOCK:"): #Startswith revisa si un string empieza con una frase, en este caso se usara para hacer una especie de comandos   
+        mensaje_lista_stock = mensaje.split(":") #Split retorna una lista
+        lista_productos = [] #Limpiamos la lista
+        
+        #Agregar cada item a la variable actual
+        for i in range(1, len(mensaje_lista_stock)):
+            lista_productos.append(int(mensaje_lista_stock[i])) #Hay que guardar el numero como una variable entera, de lo contrario no se puede restar
+        print(lista_productos)
+    
+    #Cambiar a modo_mantenimiento
+    elif mensaje.startswith("MANTENIMIENTO:"):
+        pass
+
+def enviar_mensaje(id):
+    global cliente_sock #Revisar si hay un cliente conectado
+
+    if id == "VENTA": #es decir que se vendio un producto
+        mensaje = f"STOCK:{lista_productos[0]}:{lista_productos[1]}:{lista_productos[2]}"
+
+    if cliente_sock:
+        try:
+            cliente_sock.send(mensaje.enconde) #hay que codificar siempre el mensaje
+        except:
+            print("Error enviando el mensaje")
+            
 
 # Funciones de la maquina
 
@@ -73,36 +118,83 @@ def mostrar_cantidad_productos(producto):
     numero = numeros_segmento[str(lista_productos[producto])]
     for x in range(7):
         diccionario_segmentos["segmento" + str(x)].value(numero[x])
-    
 
+#definimos una funcion para iniciar el programa
+
+def inicio():
+   global ip_local, server_sock, poller #Necesito que sean variables globales para que estas mismas se usen en el main loop!!
+   ip_local = connect_wifi() #Como conect wifi conecta la rasp y devuelve una ip, lo podemos iniciar asi
+   server_sock, poller = iniciar_servidor_async(ip_local) #El server sock y poller los devuelve la funcion de iniciar servidor async
+   print("Sistema listo.")
+
+inicio()
+
+#Loop principal
 while True:
+    
+    # Eventos de red
+    eventos = poller.poll(0) #Pregunta si hay actividad sin bloquear el sistema
+    for sock, ev in eventos: #Itera sobre cada socket para recibir su informacion
+        
+        #Conexion al servidor
+        
+        if sock == server_sock: #Basicamente dice que si el sock que tuvo actividad es el mismo que el de la Rasp, es porque hay un cliente conectandose
+            cliente_sock, addr = server_sock.accept() #Acepta la conexion
+            print("PC Conectada:", addr)
+            poller.register(cliente_sock, select.POLLIN) #Registra un poller, que sera la entrada de datos desde la PC
+        
+        elif sock == cliente_sock: #Si llega un mensaje desde el PC
+            try: 
+                data = cliente_sock.recv(1024) #Intenta recibir informacion
+                if data:
+                    #Si hay informacion, simplemente llamamos a la funcion de manejar_mensajes
+                    recibir_mensaje(data)
+                    
+            except: #Si no hay sock del cliente, simplemente lo desconecta
+                poller.unregister(cliente_sock) #quita el poller
+                cliente_sock.close() #cerramos el socket del cliente
+                cliente_sock = None #lo pasamos a None,
+    
+    # Modo de ventas
+    if modo_ventas:
+        # Potenciometro 
+        adc_value = potenciometro.read_u16()
 
-    # Potenciometro 
-    adc_value = potenciometro.read_u16()
-    
-    if adc_value > 50000:
-        print("0")
-        producto = 0
-    elif 20000 < adc_value < 50000:
-        print("medio")
-        producto = 1
-    else:
-        print("alto")
-        producto = 2
-    # Prender Lets 
-    if lista_productos[producto] == 0:
-        led1.value(1)
-        led2.value(0)
-    else:
-        led1.value(0)
-        led2.value(1)
-    mostrar_cantidad_productos(producto)
-    
-    # Procedimiento compra productos
-    if boton.value() == 1 and lista_productos[producto] > 0:
-        lista_productos[producto] = lista_productos[producto] - 1
-        print("hola")
-        servo.duty_u16(min_duty)
-        time.sleep(3)
-        servo.duty_u16(half_duty)
-    time.sleep(0.1)
+        if adc_value > 50000:
+            print("Producto 1")
+            producto = 0 #Este es el indice de la lista
+        elif 20000 < adc_value < 50000:
+            print("Producto 2")
+            producto = 1
+        else:
+            print("Producto 3")
+            producto = 2
+       
+       # Prender Leds
+       
+        if lista_productos[producto] == 0: #Si no hay producto, prender rojo y no prender verde
+            led1.value(1)
+            led2.value(0)
+       
+        else: #Si hay productos, hacer la instruccion alreves
+            led1.value(0)
+            led2.value(1)
+        
+        mostrar_cantidad_productos(producto) #Mostrar la cantidad de producto en el 7 segmentos
+        
+        # Procedimiento compra productos
+        if boton.value() == 1 and lista_productos[producto] > 0:
+            lista_productos[producto] = lista_productos[producto] - 1
+            print("Compra exitosa")
+            enviar_mensaje("VENTA")
+            servo.duty_u16(min_duty)
+            time.sleep(3)
+            servo.duty_u16(half_duty)
+        
+        
+        
+        time.sleep(0.5) #Evitar que la rasperry se sobre caliente
+
+
+
+
