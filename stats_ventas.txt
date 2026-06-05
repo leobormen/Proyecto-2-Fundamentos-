@@ -1,0 +1,3 @@
+Producto1,12
+Producto2,14
+Producto3,26
