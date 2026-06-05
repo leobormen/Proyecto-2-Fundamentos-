@@ -18,13 +18,14 @@ lista_stats = [0,0,0]
 potenciometro = ADC(Pin(26))
 led_rojo = Pin(16, Pin.OUT)
 led_verde = Pin(17, Pin.OUT)
-led_azul = Pin(34, Pin.OUT)
-boton = Pin(10, Pin.IN, Pin.PULL_DOWN)
+led_azul = Pin(1, Pin.OUT)
 led_azul.value(1)
+boton = Pin(10, Pin.IN, Pin.PULL_DOWN)
+
 
 #7 Segmentos
 
-# Pines 7 Segmentos
+# Pines 7 Segmentos	
 segmento0 = Pin(15, Pin.OUT)
 segmento1 = Pin(14, Pin.OUT)
 segmento2 = Pin(13, Pin.OUT)
@@ -54,8 +55,28 @@ half_duty = 4700
 # Modos de la maquina
 modo_ventas = True
 modo_mantenimiento = False 
-stock_bool = False
-stats_bool = True
+
+# Funciones de la maquina
+
+def mostrar_cantidad_productos(producto):
+    global lista_productos 
+    numero = numeros_segmento[str(lista_productos[producto])]
+    for x in range(7):
+        diccionario_segmentos["segmento" + str(x)].value(numero[x])
+        
+def apagar_7segmentos():
+    for x in range(7):
+        diccionario_segmentos["segmento" + str(x)].value(0)
+#Funcion para detener ejecucion
+        
+def iniciar_mantenimiento():
+     modo_ventas = False
+     modo_mantenimiento = True
+     servo.duty_u16(min_duty)
+     led_azul.value(1)
+     led_verde.value(0)
+     led_rojo.value(0)
+     apagar_7segmentos()
 
 # Conexion WiFi 
 
@@ -87,41 +108,26 @@ def iniciar_servidor_async(ip):
     return s, poller #Devuelve ambos para su uso posterior
 
 def recibir_mensaje(data):
-    global lista_productos, lista_stats, modo_ventas, modo_mantenimiento, stock_bool, stas_bool
-    mensaje = data.decode().strip().upper() #Decodificar ya que viene en binario, strip (eliminar espacios), upper para asegurar una correcta lectura
+    global lista_productos, modo_ventas, modo_mantenimiento, led_azul 
+    mensaje = data.decode().strip().upper()
     
-    #Recibir Stock de productos
-    if mensaje.startswith("STOCK:"): #Startswith revisa si un string empieza con una frase, en este caso se usara para hacer una especie de comandos   
-        mensaje_lista_stock = mensaje.split(":") #Split retorna una lista
-        lista_productos = [] #Limpiamos la lista
-        
-        #Agregar cada item a la variable actual
+    if mensaje.startswith("STOCK:"):
+        mensaje_lista_stock = mensaje.split(":")
+        lista_productos = []
         for i in range(1, len(mensaje_lista_stock)):
-            lista_productos.append(int(mensaje_lista_stock[i])) #Hay que guardar el numero como una variable entera, de lo contrario no se puede restar
+            lista_productos.append(int(mensaje_lista_stock[i]))
         print("Lista de productos actualizada!!")
         print(lista_productos)
-        stock_bool = True
-        
-    #Recibir estadisticas de ventas
-    elif mensaje.startswith("STATS:"): #Startswith revisa si un string empieza con una frase, en este caso se usara para hacer una especie de comandos   
-        mensaje_lista_stats = mensaje.split(":") #Split retorna una lista
-        lista_stats = [] #Limpiamos la lista
-        
-        #Agregar cada item a la variable actual
-        for i in range(1, len(mensaje_lista_stats)):
-            lista_stats.append(int(mensaje_lista_stats[i])) 
-        print("Lista de STATS actualizada!!")
-        print(lista_stats)
-    stats_bool = True
-    
-    if stats_bool and stock_bool:
-        print("MENSAJES RECIBIDOS CORRECTAMENTE!")
-        print("iniciando ventas")
         modo_ventas = True
-    
-    #Cambiar a modo_mantenimiento
+        if modo_mantenimiento: #Pregunta si esta en modo mantenimiento, ya que desde la PC lo que hace es que se abre una opcion para cambiar los parametros y los vuelve a enviar, entonces si esta en modo mantenimiento simplemente lo apaga y ya
+            led_azul.value(0)
+            servo.duty_u16(half_duty)
+            modo_mantenimiento = False
+
     elif mensaje.startswith("MANTENIMIENTO:"):
-        pass
+        mensaje_mantenimiento = mensaje.split(":")
+        if mensaje_mantenimiento[1] == "ACTIVAR":
+            iniciar_mantenimiento()
 
 #Definir una funcion para enviar mensajes
 def enviar_mensaje(id, producto):
@@ -139,13 +145,7 @@ def enviar_mensaje(id, producto):
     else:
         print("No hay cliente conectado")
 
-# Funciones de la maquina
 
-def mostrar_cantidad_productos(producto):
-    global lista_productos 
-    numero = numeros_segmento[str(lista_productos[producto])]
-    for x in range(7):
-        diccionario_segmentos["segmento" + str(x)].value(numero[x])
 
 #definimos una funcion para iniciar el programa
 
@@ -190,6 +190,7 @@ while True:
 
         if adc_value > 50000:
             producto = 0 #Este es el indice de la lista
+
         elif 20000 < adc_value < 50000:
             producto = 1
         else:
@@ -221,13 +222,8 @@ while True:
             servo.duty_u16(min_duty)
             time.sleep(3)
             servo.duty_u16(half_duty)
+            time.sleep(1)
         
         
         
         time.sleep(0.1) #Evitar que la rasperry se sobre caliente
-
-
-
-
-
-

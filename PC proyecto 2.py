@@ -102,15 +102,7 @@ def enviar_productos_rasp():
         client_socket.send(mensaje.encode())
     except:
         print("Error")
-# Enviar stats
-def enviar_stats_rasp():
-    mensaje = "STATS" # Empezar con el mensaje
-    for producto in lista_stats: #Para cada producto se usa algo 
-        mensaje += f":{producto}"
-    try:
-        client_socket.send(mensaje.encode())
-    except:
-        print("Error")
+
 
 #Leer ambos documentos
 def leer_archivos():
@@ -118,9 +110,6 @@ def leer_archivos():
     leer_archivo_stats()
 
 #Juntar ambos mensajes para asegurar un envio correcto de datos
-def enviar_inicio():
-    enviar_productos_rasp()
-    enviar_stats_rasp()
 
 # GUI
 root = tk.Tk()
@@ -144,5 +133,5 @@ salir_btn.pack()
 
 connect()
 leer_archivos()
-enviar_inicio()
+enviar_productos_rasp()
 root.mainloop()
