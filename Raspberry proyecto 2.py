@@ -53,7 +53,7 @@ half_duty = 4700
 
 
 # Modos de la maquina
-modo_ventas = True
+modo_ventas = False
 modo_mantenimiento = False 
 
 # Funciones de la maquina
@@ -66,10 +66,11 @@ def mostrar_cantidad_productos(producto):
         
 def apagar_7segmentos():
     for x in range(7):
-        diccionario_segmentos["segmento" + str(x)].value(0)
+        diccionario_segmentos["segmento" + str(x)].value(0) #Para cada segmento , el valor sera 0
 #Funcion para detener ejecucion
         
 def iniciar_mantenimiento():
+     global modo_ventas, modo_mantenimiento, servo, led_azul, led_verde, led_rojo
      modo_ventas = False
      modo_mantenimiento = True
      servo.duty_u16(min_duty)
@@ -118,16 +119,18 @@ def recibir_mensaje(data):
             lista_productos.append(int(mensaje_lista_stock[i]))
         print("Lista de productos actualizada!!")
         print(lista_productos)
-        modo_ventas = True
-        if modo_mantenimiento: #Pregunta si esta en modo mantenimiento, ya que desde la PC lo que hace es que se abre una opcion para cambiar los parametros y los vuelve a enviar, entonces si esta en modo mantenimiento simplemente lo apaga y ya
+        if modo_mantenimiento == False:
+            modo_ventas = True
+
+
+    elif mensaje.startswith("MANTENIMIENTO:ACTIVAR"):
+            iniciar_mantenimiento()
+ 
+    elif mensaje.startswith("MANTENIMIENTO:DESACTIVAR"):
             led_azul.value(0)
             servo.duty_u16(half_duty)
             modo_mantenimiento = False
-
-    elif mensaje.startswith("MANTENIMIENTO:"):
-        mensaje_mantenimiento = mensaje.split(":")
-        if mensaje_mantenimiento[1] == "ACTIVAR":
-            iniciar_mantenimiento()
+            modo_ventas = True 
 
 #Definir una funcion para enviar mensajes
 def enviar_mensaje(id, producto):
