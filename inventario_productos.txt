@@ -1,3 +1,3 @@
-Producto1,7
-Producto2,8
-Producto3,5
+Producto1,5
+Producto2,7
+Producto3,3

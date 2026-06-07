@@ -62,7 +62,7 @@ def mostrar_cantidad_productos(producto):
     global lista_productos 
     numero = numeros_segmento[str(lista_productos[producto])]
     for x in range(7):
-        diccionario_segmentos["segmento" + str(x)].value(numero[x])
+        diccionario_segmentos["segmento" + str(x)].value(numero[x]) #Strx  es por cuestion de ir recorriendo cada segemento y cambiarle so valor
         
 def apagar_7segmentos():
     for x in range(7):
@@ -73,11 +73,11 @@ def iniciar_mantenimiento():
      global modo_ventas, modo_mantenimiento, servo, led_azul, led_verde, led_rojo
      modo_ventas = False
      modo_mantenimiento = True
-     servo.duty_u16(min_duty)
+     servo.duty_u16(min_duty) #abrir servo
      led_azul.value(1)
      led_verde.value(0)
      led_rojo.value(0)
-     apagar_7segmentos()
+     apagar_7segmentos() 
 
 # Conexion WiFi 
 
@@ -113,15 +113,14 @@ def recibir_mensaje(data):
     mensaje = data.decode().strip().upper()
     
     if mensaje.startswith("STOCK:"):
-        mensaje_lista_stock = mensaje.split(":")
-        lista_productos = []
+        mensaje_lista_stock = mensaje.split(":")  #Trabnsformarlo en una lista
+        lista_productos = [] #Se va actualizar la lista de productos, entonces se limpia 
         for i in range(1, len(mensaje_lista_stock)):
             lista_productos.append(int(mensaje_lista_stock[i]))
-        print("Lista de productos actualizada!!")
         print(lista_productos)
-        if modo_mantenimiento == False:
+        if modo_mantenimiento == False: #esto es para prevenir que se quite el mantenimiento durante la ejecucion
             modo_ventas = True
-
+            led_azul.value(0)
 
     elif mensaje.startswith("MANTENIMIENTO:ACTIVAR"):
             iniciar_mantenimiento()
@@ -129,7 +128,7 @@ def recibir_mensaje(data):
     elif mensaje.startswith("MANTENIMIENTO:DESACTIVAR"):
             led_azul.value(0)
             servo.duty_u16(half_duty)
-            modo_mantenimiento = False
+            modo_mantenimiento = False #Le deja saber al sistema si esta en mantenimiento o no
             modo_ventas = True 
 
 #Definir una funcion para enviar mensajes

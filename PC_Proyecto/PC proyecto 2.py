@@ -62,6 +62,7 @@ def connect():
         client_socket.connect((SERVER_IP, PORT)) #Intenta connectar el socket a la rasperry PI 
         threading.Thread(target=receive_messages, daemon=True).start() #Si se conecta, genera un thread para no paralizar la ejecucion del programa
         print("Conectado al servidor") #Nos imprime que si esta conectado correctamente
+        enviar_mensaje_rasp(1)
     except Exception as e:
         print(f"Error: {e}") #Si no imprime un error
 
@@ -326,7 +327,7 @@ def modo_estadisticas():
 
         #Definir ganancias totales para su uso despues
         ganancias_totales_colones = sum(lista_stats) * 250
-        ganancias_totales_dolares = round(ganancias_totales_colones / tipo_cambio, 2)
+        ganancias_totales_dolares = round(ganancias_totales_colones / tipo_cambio, 2)  
 
         # Ganancias por producto
         label_ganancia_p1 = tk.Label(frame_gui, text=f"Ganancias P1: ₡{lista_stats[0] * 250} / ${round(lista_stats[0] * 250 / tipo_cambio, 2)}") 
@@ -352,10 +353,9 @@ def modo_estadisticas():
 
 #Funciones para ejecutar el programa
 def inicio():
+    leer_archivos()
     threading.Thread(target=connect, daemon=True).start()
     threading.Thread(target=obtener_tipo_cambio, daemon=True).start()
-    leer_archivos()
-    enviar_mensaje_rasp(1)
     menu_principal()
 
 inicio()
