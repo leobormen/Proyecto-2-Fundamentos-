@@ -38,7 +38,7 @@ segmento6 = Pin(20, Pin.OUT)
 diccionario_segmentos = {"segmento0" : segmento0, "segmento1" : segmento1, "segmento2" : segmento2, "segmento3" : segmento3, "segmento4" : segmento4, "segmento5" : segmento5, "segmento6" : segmento6}
 
 #Numeros del Segumento
-numeros_segmento = {"0" : [0,1,1,1,1,1,1], "1" : [0,0,0,1,0,0,1], "2" : [1,0,1,1,1,1,0], "3" : [1,0,1,1,0,1,1], "4" : [1,1,0,1,0,0,1], "5" : [1,1,1,0,0,1,1], "6" : [1,1,1,0,1,1,1], "7" : [0,0,1,1,0,0,1], "8" : [1,1,1,1,1,1,1], "9" : [1,1,1,1,0,1,1] }
+numeros_segmento = {"0" : [1,1,1,0,1,1,1], "1" : [1,0,0,0,0,0,1], "2" : [1,1,0,1,1,1,0], "3" : [1,1,0,1,0,1,1], "4" : [1,0,1,1,0,1,1], "5" : [0,1,1,1,0,1,1], "6" : [0,1,1,1,1,1,1], "7" : [1,1,0,0,0,0,1], "8" : [1,1,1,1,1,1,1], "9" : [1,1,1,1,0,1,1] }
 
 
 # Servo Motor 
